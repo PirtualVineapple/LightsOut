@@ -57,16 +57,14 @@ Cell*** toggleLights(Cell*** CellList, int x, int y)
     {
         CellList[x][y]->state();
         if (x == 0){
-            printf("Yap");
             CellList[x + 1][y]->state();}
         else if (x == (cellDim - 1)){
             CellList[x-1][y]->state();}
         else{ CellList[x+1][y]->state();
             CellList[x-1][y]->state();}
         if (y == 0){
-            printf("Yip");
             CellList[x][y+1]->state();}
-        else if (y == (cellDim -1 )){
+        else if (y == (cellDim - 1)){
             CellList[x][y-1]->state();}
         else{ CellList[x][y+1]->state();
             CellList[x][y-1]->state();}
@@ -97,6 +95,17 @@ GLFWwindow* initWindow()
     return Window;
 }
 
+void mouseClick(GLFWwindow* Window, Cell*** cellList)
+{
+    double xcursor, ycursor;
+    glfwGetCursorPos(Window, &xcursor, &ycursor);
+    printf("A: %f %f ", xcursor, ycursor);
+    xcursor = xcursor * cellDim / DIM;
+    ycursor = cellDim - ycursor * cellDim / DIM;
+    printf("B: %f %f ", xcursor, ycursor);
+    toggleLights(cellList, (int) xcursor, (int) ycursor);
+}
+
 void constructVO(GLuint& VAO, GLuint* VBO, GLfloat* vertexArray, GLfloat* colorArray)
 {
     glBindVertexArray(VAO);
@@ -109,7 +118,7 @@ void constructVO(GLuint& VAO, GLuint* VBO, GLfloat* vertexArray, GLfloat* colorA
     glBufferData(GL_ARRAY_BUFFER, cellDim * cellDim * 6 * sizeof(GLfloat), colorArray, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, 0);
-    //glBindVertexArray(0);
+    glBindVertexArray(0);
 
 }
 
@@ -124,13 +133,6 @@ void createShaders()
 
     glShaderSource(vertexShader, 1, &vertexSource, NULL);
     glCompileShader(vertexShader);
-    GLint Result = GL_FALSE;
-    int infoLogLen;
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(vertexShader, GL_INFO_LOG_LENGTH, &infoLogLen);
-    std::vector<char> vertShaderErrMsgs(infoLogLen);
-    glGetShaderInfoLog(vertexShader, infoLogLen, NULL, &vertShaderErrMsgs[0]);
-    fprintf(stdout, "%s\n", &vertShaderErrMsgs[0]);
 
 
     glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
@@ -197,6 +199,7 @@ GLfloat* constructCellColorArray(GLfloat* colorArray, Cell*** cellList, bool cre
 void startGame()
 {
     GLFWwindow* Window = initWindow();
+    bool Clicked = false;
     GLuint VAO;
     GLuint VBO[2];
     glGenVertexArrays(1, &VAO);
@@ -207,17 +210,23 @@ void startGame()
     constructVO(VAO, VBO, cellVertexArray, cellColorArray);
     createShaders();
     glClearColor(1.0, 1.0, 1.0, 1.0);
-    glBindVertexArray(VAO);
 
-    toggleLights(cellList, 2, 2);
-
-    constructCellColorArray(cellColorArray, cellList, false);
-    constructVO(VAO, VBO, cellVertexArray, cellColorArray);
     while (!glfwWindowShouldClose(Window)){
         glClear(GL_COLOR_BUFFER_BIT);
+
+        constructCellColorArray(cellColorArray, cellList, false);
+        constructVO(VAO, VBO, cellVertexArray, cellColorArray);
+
+        glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, cellDim * cellDim * 12);
         glfwSwapBuffers(Window);
         glfwWaitEvents();
+        if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) == 1 && !Clicked){
+            Clicked = true;
+            mouseClick(Window, cellList);
+        }
+        if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) == 0 && Clicked)
+            Clicked = false;
     }
     glfwDestroyWindow(Window);
     glfwTerminate();
@@ -230,8 +239,8 @@ int main(int argc, char** argv)
     if(argc == 2){
         cellDim = atoi(argv[1]);
         printf("%d",cellDim);
-        if(cellDim <= 0 && cellDim > 10){
-            printf("Please input an integer greater than 0 and less than 11");
+        if(cellDim <= 1){
+            printf("Please input an integer greater than 1");
             return 0;
         }
     }else{
