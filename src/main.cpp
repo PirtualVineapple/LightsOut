@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #define DIM 600
-
+typedef struct Cell*** CellList;
 
 int cellDim;
 
@@ -27,19 +27,19 @@ Cell::Cell(float xcoord, float ycoord)
     light = false;
 }
 
-Cell*** createCellList()
+CellList createCellList()
 {
     float x = -1.0f;
     float y = -1.0f;
-    Cell*** CellList = new Cell**[cellDim];
+    CellList cellList = new Cell**[cellDim];
 
     for (int i = 0; i <= (cellDim - 1); i++)
     {
-        CellList[i] = new Cell*[cellDim];
+        cellList[i] = new Cell*[cellDim];
 
         for(int j = 0; j <= (cellDim - 1); j++)
         {
-            CellList[i][j] = new Cell(x, y);
+            cellList[i][j] = new Cell(x, y);
             y += 2/(float)cellDim;
         }
 
@@ -47,29 +47,29 @@ Cell*** createCellList()
         y = -1.0f;
     }
 
-    return CellList;
+    return cellList;
 
 }
 
-Cell*** toggleLights(Cell*** CellList, int x, int y)
+CellList toggleLights(CellList cellList, int x, int y)
 {
     if (x <= (cellDim - 1) && y <= (cellDim - 1) && x >= 0 && y >= 0)
     {
-        CellList[x][y]->state();
+        cellList[x][y]->state();
         if (x == 0){
-            CellList[x + 1][y]->state();}
+            cellList[x + 1][y]->state();}
         else if (x == (cellDim - 1)){
-            CellList[x-1][y]->state();}
-        else{ CellList[x+1][y]->state();
-            CellList[x-1][y]->state();}
+            cellList[x-1][y]->state();}
+        else{ cellList[x+1][y]->state();
+            cellList[x-1][y]->state();}
         if (y == 0){
-            CellList[x][y+1]->state();}
+            cellList[x][y+1]->state();}
         else if (y == (cellDim - 1)){
-            CellList[x][y-1]->state();}
-        else{ CellList[x][y+1]->state();
-            CellList[x][y-1]->state();}
+            cellList[x][y-1]->state();}
+        else{ cellList[x][y+1]->state();
+            cellList[x][y-1]->state();}
     }
-    return CellList;
+    return cellList;
 
 }
 
@@ -122,6 +122,38 @@ void constructVO(GLuint& VAO, GLuint* VBO, GLfloat* vertexArray, GLfloat* colorA
 
 }
 
+void constructLines(GLuint& VAO, GLuint* VBO)
+{
+    GLfloat vertexArray[cellDim * 8];
+    GLfloat colorArray[cellDim * 4];
+    float x = -1.0f;
+    float y = -1.0f;
+
+    for (int i = 0; cellDim * 4; i++)
+    {
+        vertexArray[i * 2] = x;
+        vertexArray[i * 2 + 1] = y;
+        x += 2/(float)cellDim;
+        y += 2/(float)cellDim;
+    }
+    for (int i = 0; cellDim * 4; i++)
+    {
+        colorArray[i] = 0.5f;
+    }
+    glBindVertexArray(VAO);
+    glGenBuffers(2, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+    glBufferData(GL_ARRAY_BUFFER, cellDim * 8 * sizeof(GLfloat), vertexArray, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+    glBufferData(GL_ARRAY_BUFFER, cellDim *  4 * sizeof(GLfloat), colorArray, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindVertexArray(0);
+
+}
+
 void createShaders()
 {
     GLuint shaderProgram;
@@ -146,7 +178,7 @@ void createShaders()
 }
 
 
-GLfloat* createCellVertexArray(GLfloat* vertexArray, Cell*** cellList)
+GLfloat* createCellVertexArray(GLfloat* vertexArray, CellList cellList)
 {
     GLfloat diff = 2/(float)cellDim;
     vertexArray = new GLfloat[cellDim*cellDim*12];
@@ -173,7 +205,7 @@ GLfloat* createCellVertexArray(GLfloat* vertexArray, Cell*** cellList)
 
 }
 
-GLfloat* constructCellColorArray(GLfloat* colorArray, Cell*** cellList, bool create)
+GLfloat* constructCellColorArray(GLfloat* colorArray, CellList cellList, bool create)
 {
     if(create){
         colorArray = new GLfloat[cellDim*cellDim*6]; create = true;}
@@ -200,14 +232,16 @@ void startGame()
 {
     GLFWwindow* Window = initWindow();
     bool Clicked = false;
-    GLuint VAO;
+    GLuint VAO[2];
     GLuint VBO[2];
-    glGenVertexArrays(1, &VAO);
+    GLuint LinesVBO[2];
+    glGenVertexArrays(2, VAO);
     
-    Cell*** cellList = createCellList();
+    CellList cellList = createCellList();
     GLfloat* cellVertexArray = createCellVertexArray(cellVertexArray, cellList);
     GLfloat* cellColorArray = constructCellColorArray(cellColorArray, cellList, true);
-    constructVO(VAO, VBO, cellVertexArray, cellColorArray);
+    constructVO(VAO[0], VBO, cellVertexArray, cellColorArray);
+    //constructLines(VAO[1], LinesVBO);
     createShaders();
     glClearColor(1.0, 1.0, 1.0, 1.0);
 
@@ -215,10 +249,14 @@ void startGame()
         glClear(GL_COLOR_BUFFER_BIT);
 
         constructCellColorArray(cellColorArray, cellList, false);
-        constructVO(VAO, VBO, cellVertexArray, cellColorArray);
+        constructVO(VAO[0], VBO, cellVertexArray, cellColorArray);
 
-        glBindVertexArray(VAO);
+        glBindVertexArray(VAO[0]);
         glDrawArrays(GL_TRIANGLES, 0, cellDim * cellDim * 12);
+
+        glBindVertexArray(VAO[1]);
+        //glDrawArrays(GL_LINES, 0, cellDim * 8);
+
         glfwSwapBuffers(Window);
         glfwWaitEvents();
         if (glfwGetMouseButton(Window, GLFW_MOUSE_BUTTON_LEFT) == 1 && !Clicked){
