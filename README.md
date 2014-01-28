@@ -2,4 +2,5 @@ LightsOut
 =========
 
 A Lights Out game made in C++ :D
-In shell "LightsOut (One dimension of cells)
+
+To run the game, type "LightsOut (Insert-Integer)"
